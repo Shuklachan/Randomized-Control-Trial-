@@ -1,0 +1,186 @@
+---
+title: "Test"
+author: "Chandra Shukla"
+date: "April 26, 2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+## 
+This is the report prepared for the RCT data analysis
+
+**Section 1 - DATA CLEANING** 
+
+1.	Import the data into Stata
+2.	Merge with supplementary file with town names and districts
+???	Make sure that all towns are named and drop any irrelevant towns.
+3.	The district variable is currently 'string'. Create a district variable such that it is numerical 
+4.	Create a unique ID for each observation. Create the ID such that the first three digits are the town id 
+5.	Are there any variables in your dataset with missing data? Identify the variables that have missing values and deal with the missing values in your dataset so that it does not affect your analysis. 
+6.	Create a dummy variable for each value of Town ID. 
+7.	Label all variables as either "ID variable", "Electoral data" or "Intervention".
+8.	Label values for the treatment variable appropriately. 
+
+
+# Solution
+*The Following chunk of code will load the data and create the unique ID for each observation with first three digit as town code*
+
+```{r, echo=TRUE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+```{r setup, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls(all=TRUE)) 
+#install.packages(rjava)
+#install.packages("xlsx")
+library(rJava)
+library(xlsxjars)
+library(xlsx)
+Data1=read.xlsx("Data1.xlsx",1,as.dataframe=TRUE)
+Data1<-Data1[1:6970,]
+Data2=read.xlsx("Data2.xlsx",1,as.dataframe=TRUE)
+FData<-merge(Data1,Data2,by.x="town_id",by.y="Town.ID")
+FData<-cbind(FData,"serial"=1:nrow(FData))
+FData<-transform(FData,UID=paste0(town_id,serial))
+```
+
+## UID is created Now lets work on creating Dummy Variable 
+```{r}
+temp1<-Data2[,1]
+temp1=t(temp1)
+m=nrow(FData)
+n=NCOL(temp1)
+temp2<-matrix(0,nrow=m,ncol=n)
+temp2<-data.frame(temp2)
+colnames(temp2)<-temp1
+combined<-cbind(FData,temp2)
+colnames(combined)
+for (i in 1:nrow(combined)){
+  n=as.character(combined[i,1])
+  combined[i,n]=1
+}
+  
+combined$as.dataframe.x<-NULL
+combined$as.dataframe.y<-NULL
+```
+## Dummy Variable created
+
+**The above list shows the list of columns out of which some were already present in the data and others were added in the form of Dummy variable**  
+*The following chunk of code will catergorize all the data in either of the following three categories**"ID Variable"**, **"Electoral Data"** or **"Intervention"***
+
+```{r}
+
+lab=data.frame('ID Variable','Electoral Data','Electoral Data','Electoral Data','Electoral Data','Electoral Data','Electoral Data','Electoral Data','Intervention','Intervention','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable','ID Variable')
+colnames(lab)<-colnames(combined)
+combined<-rbind(combined,lab)
+combined<-rbind(lab,combined)
+combined<-combined[-c(nrow(combined)),]
+combined2<-combined[-c(1),]
+```
+
+# Section 2 - DESCRIPTIVE STATISTICS 
+
+9.	What is the average total turnout rate? Also note down the highest and lowest turnout rates recorded. How many polling booths recorded the highest turnout rate? 
+10.	By treatment, tabulate the number of booths in phases 1 and 2 of the study
+11.	Tabulate the average turnout rate for females for each district which has a total turnout rate of 75% or above. 
+12.	Is the average turnout rate for females notably higher in treatment polling booths than control? Can you say the difference is significant? How would you test for it? 
+13.	Create one simple, clearly-labeled bar graph that shows the difference in turnout between treatment and control polling booths by gender as well as total turnout. Please output your results from stata in the clearest form possible.
+
+
+The summary of the data sets 
+
+```{r}
+summary(Data1)
+
+```
+
+From the above, we can easily find the required informations as follows  
+**Average total turn out=464.9**  
+**Average registered total =973.8**  
+Average total turnout rate can be calculated as follows
+
+```{r}
+464.9/973.8
+```
+```{r}
+Total_Turn_out_rate<-Data1[,"turnout_total"]/Data1[,"registered_total"]
+#Total_Turn_out_rate
+summary(Total_Turn_out_rate)
+tabulate(max(Total_Turn_out_rate))
+total_female_turnout_rate<-Data1[,"turnout_female"]/Data1[,"registered_female"]
+total_male_turnout_rate<-Data1[,"turnout_male"]/Data1[,"registered_male"]
+summary(total_female_turnout_rate)
+treatment<-Data1[,"treatment_phase"]==1
+treatment<-which(Data1$treatment==1)
+```
+
+Now is the time to pickup turnout rate for female in treatment polling booths
+
+```{r}
+female_turnout_rate_treatment<-total_female_turnout_rate[Data1$treatment==1]
+female_turnout_rate_control<-total_female_turnout_rate[Data1$treatment==0]
+#female_turnout_rate_treatment
+male_turnout_rate_treatment<-total_male_turnout_rate[Data1$treatment==1]
+male_turnout_rate_control<-total_male_turnout_rate[Data1$treatment==0]
+```
+**The mean female turnout rate control is**
+```{r}
+mean(female_turnout_rate_control)
+```
+**The mean female turnout rate treatment is**
+```{r}
+mean(female_turnout_rate_treatment)
+```
+**The mean male turnout rate control is**
+```{r}
+mean(male_turnout_rate_control)
+```
+**The mean male turnout rate treatment is**
+```{r}
+mean(male_turnout_rate_treatment)
+```
+### We can now easily visualize the female and male turnout rate in both treatment and control groups
+```{r}
+gender<-c("Male","Female")
+treatment_effect<-c(0.5725695,0.5808049)
+control_effect<-c(0.5661872,0.5668341)
+mp<-barplot(treatment_effect,main = "Treatment Effects",xlab="Gender",ylab = "Turn out Rate",names.arg = c("Male","Female"))
+mtext(side = 1, at = mp, text = treatment_effect, line = 3)
+gender<-c("Male","Female")
+treatment_effect<-c(0.5725695,0.5808049)
+control_effect<-c(0.5661872,0.5668341)
+mp<-barplot(control_effect,main = "Control Effects",xlab="Gender",ylab = "Turn out Rate",names.arg = c("Male","Female"))
+mtext(side = 1, at = mp, text = control_effect, line = 3)
+```
+
+###**Test for the Female turnout rate in Treatment vs Control  
+  
+For this we need to do the t-test and find the coefficient** 
+
+```{r}
+t.test(female_turnout_rate_control,female_turnout_rate_control)
+```
+**The p-value is high so we can conclude that the difference is significant i.e. The Female turnout rate at the treatment booths is significantly higher**
+```{r}
+StudyBoot<-Data1[,"treatment_phase"]
+tabulate(StudyBoot)
+```
+**The following chunk of codes will give us details about the where the female turn out rate is higher than* 75%**
+```{r}
+Greater<-Total_Turn_out_rate>0.75
+summary(Greater)
+```
+***The mean average turn out rate for female where it is higher than 75% is `r mean(Greater)`***
+
+
+#### Note
+_I could not remember the command for the statistical analysis part so carried out the regression using **Excel Analysis toolpack**_  
+The regression done in the excel is attached as a separate file.
+
+# Regression 
+1.A separate excel sheet is attached with the solution folder.  
+2.In the solution, turnout_total has been taken as dependent variable  
+3.From excel regression output, we can see the **mean turnout for the control group is 354.48**   
+4.From the result,it is also evedent that **treatment phase and treatment have got higher coeficients with very low p-value**. This shows that they played a ***significant role*** in the turnout_total variable.   
+
